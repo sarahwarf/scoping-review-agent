@@ -148,7 +148,6 @@ def _parse_openalex(work: dict) -> dict:
         "verified_journal": source.get("display_name", ""),
         "verified_issn": source.get("issn_l", ""),
         "source_type": source.get("type", ""),
-        "in_doaj": source.get("is_in_doaj", None),
         "work_type": work.get("type", ""),
         "cited_by_count": work.get("cited_by_count", ""),
         "is_open_access": oa.get("is_oa", None),
@@ -237,8 +236,6 @@ def analyze_paper(client, system_prompt: str, title: str, abstract: str,
         oa_lines.append(f"Work type: {openalex['work_type']}")
     if openalex.get("source_type"):
         oa_lines.append(f"Source type: {openalex['source_type']}")
-    if openalex.get("in_doaj") is not None:
-        oa_lines.append(f"In DOAJ: {openalex['in_doaj']}")
     if openalex.get("cited_by_count") != "":
         oa_lines.append(f"Cited by: {openalex['cited_by_count']}")
 
@@ -454,7 +451,6 @@ if st.button("▶ Run analysis", type="primary"):
                 "parse_error": "",
                 "openalex_work_type": openalex.get("work_type", ""),
                 "openalex_source_type": openalex.get("source_type", ""),
-                "in_doaj": openalex.get("in_doaj", ""),
                 "cited_by_count": openalex.get("cited_by_count", ""),
                 "oa_status": openalex.get("oa_status", ""),
                 "openalex_id": openalex.get("openalex_id", ""),
