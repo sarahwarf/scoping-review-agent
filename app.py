@@ -311,9 +311,6 @@ with col1:
     st.markdown("✅ Basic metadata (authors, year, journal, DOI)")
     st.markdown("✅ Flag ambiguous papers for full-text retrieval")
 
-    st.subheader("Verification")
-    use_openalex = st.checkbox("OpenAlex lookup — verified peer-review status, citation count", value=True)
-
     st.subheader("Classification")
     use_article_type = st.checkbox("Article type (Empirical / Review / Conceptual...)", value=False)
     use_research_design = st.checkbox("Research design (Creswell taxonomy)", value=False)
@@ -329,8 +326,17 @@ with col2:
     use_key_finding = False
     use_relevance = st.checkbox("Relevance score (1–5) with rationale", value=False)
 
+    st.subheader("OpenAlex details")
+    st.caption("Add these to understand why peer-review status was assigned.")
+    use_openalex = True  # always runs silently for peer_reviewed
+    show_work_type = st.checkbox("Work type (article, book-chapter, preprint...)", value=False)
+    show_source_type = st.checkbox("Source type (journal, repository...)", value=False)
+    show_cited_by = st.checkbox("Citation count", value=False)
+    show_oa_status = st.checkbox("Open access status", value=False)
+    show_openalex_id = st.checkbox("OpenAlex record link", value=False)
+
 modules = {
-    "openalex": use_openalex,
+    "openalex": True,
     "article_type": use_article_type,
     "research_design": use_research_design,
     "sample_size": use_sample_size,
@@ -339,6 +345,11 @@ modules = {
     "population_tags": use_population_tags,
     "key_finding": use_key_finding,
     "relevance": use_relevance,
+    "show_work_type": show_work_type,
+    "show_source_type": show_source_type,
+    "show_cited_by": show_cited_by,
+    "show_oa_status": show_oa_status,
+    "show_openalex_id": show_openalex_id,
 }
 
 st.divider()
@@ -449,13 +460,18 @@ if st.button("▶ Run analysis", type="primary"):
             record = {
                 "title": title, "citation": citation, "abstract": abstract,
                 "parse_error": "",
-                "openalex_work_type": openalex.get("work_type", ""),
-                "openalex_source_type": openalex.get("source_type", ""),
-                "cited_by_count": openalex.get("cited_by_count", ""),
-                "oa_status": openalex.get("oa_status", ""),
-                "openalex_id": openalex.get("openalex_id", ""),
                 **analysis,
             }
+            if modules["show_work_type"]:
+                record["openalex_work_type"] = openalex.get("work_type", "")
+            if modules["show_source_type"]:
+                record["openalex_source_type"] = openalex.get("source_type", "")
+            if modules["show_cited_by"]:
+                record["cited_by_count"] = openalex.get("cited_by_count", "")
+            if modules["show_oa_status"]:
+                record["oa_status"] = openalex.get("oa_status", "")
+            if modules["show_openalex_id"]:
+                record["openalex_id"] = openalex.get("openalex_id", "")
         except Exception as e:
             record = {"title": title, "citation": citation, "abstract": abstract,
                       "parse_error": str(e)}
