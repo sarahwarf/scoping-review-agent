@@ -159,7 +159,8 @@ def _parse_openalex(work: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Claude analysis
 # ---------------------------------------------------------------------------
-def build_system_prompt(modules: dict, topic_tags: list, population_tags: list) -> str:
+def build_system_prompt(modules: dict, topic_tags: list, population_tags: list,
+                        flag_conditions: list = None) -> str:
     fields = {}
     fields["authors"] = 'parsed from citation, semicolon-separated, e.g. "Lee, J.; Park, S."'
     fields["year"] = "integer"
@@ -193,8 +194,8 @@ def build_system_prompt(modules: dict, topic_tags: list, population_tags: list) 
         fields["relevance_score"] = "integer 1–5: 5 = core L2 writing paper; 3 = relevant but peripheral; 1 = unlikely to include"
         fields["relevance_rationale"] = "one sentence explaining the score"
 
-    fields["flag_full_text"] = "true if abstract is too ambiguous to classify confidently"
-    fields["flag_reason"] = 'brief reason if flagged, else ""'
+    fields["flag_full_text"] = "true if any flag condition below is met, else false"
+    fields["flag_reason"] = 'which flag condition was triggered, else ""'
 
     json_template = json.dumps(
         {k: f"<{v}>" for k, v in fields.items()}, indent=2
@@ -222,6 +223,13 @@ def build_system_prompt(modules: dict, topic_tags: list, population_tags: list) 
             prompt += ("No population tags have been defined yet. For population_tags return []. "
                        "For suggested_population_tags: list every distinct population group you can "
                        "identify from the abstract, named concisely.\n\n")
+
+    if flag_conditions:
+        prompt += "Flag conditions — set flag_full_text to true and state the condition in flag_reason if ANY of these apply:\n"
+        prompt += "\n".join(f"- {c}" for c in flag_conditions) + "\n\n"
+    else:
+        prompt += ("Flag conditions — set flag_full_text to true only if the abstract is genuinely "
+                   "too ambiguous to classify on any field above. State the reason in flag_reason.\n\n")
 
     prompt += "Return ONLY valid JSON. No commentary, no markdown fences."
     return prompt
@@ -309,7 +317,6 @@ col1, col2 = st.columns(2)
 with col1:
     st.subheader("Always included")
     st.markdown("✅ Basic metadata (authors, year, journal, DOI)")
-    st.markdown("✅ Flag ambiguous papers for full-text retrieval")
 
     st.subheader("Classification")
     use_article_type = st.checkbox("Article type (Empirical / Review / Conceptual...)", value=False)
@@ -354,9 +361,49 @@ modules = {
 
 st.divider()
 
-# ── Step 3: Customize tags ────────────────────────────────────────────────
+# ── Step 3: Flag conditions ───────────────────────────────────────────────
+st.header("Step 3 — What should get flagged for full-text review?")
+st.markdown(
+    "Select the conditions that should trigger a flag. "
+    "Flagged papers will show **⚑ REVIEW** in the output sheet with a reason. "
+    "Leave everything unchecked and the agent will only flag papers it finds genuinely ambiguous on its own."
+)
+
+FLAG_OPTIONS = [
+    "Abstract too short or vague to classify",
+    "Research design cannot be determined from the abstract",
+    "Population not clearly identified",
+    "Setting / country not identifiable",
+    "Article type is ambiguous",
+    "Journal not found in OpenAlex",
+    "Possible predatory or non-peer-reviewed journal",
+    "Full text needed before inclusion decision can be made",
+]
+
+selected_flags = st.multiselect(
+    "Flag a paper when:",
+    options=FLAG_OPTIONS,
+    default=[],
+    placeholder="Choose flag conditions...",
+)
+
+custom_flag = st.text_input(
+    "Other — describe your own flag condition:",
+    placeholder="e.g. flag if no L2 population is mentioned",
+)
+if custom_flag.strip():
+    selected_flags = selected_flags + [custom_flag.strip()]
+
+if selected_flags:
+    st.caption(f"{len(selected_flags)} flag condition(s) active")
+else:
+    st.caption("No conditions selected — agent will flag only papers it finds genuinely ambiguous.")
+
+st.divider()
+
+# ── Step 4: Customize tags ────────────────────────────────────────────────
 if use_topic_tags or use_population_tags:
-    st.header("Step 3 — Customize tags")
+    st.header("Step 4 — Customize tags")
 
 if use_topic_tags:
     st.subheader("Topic tags")
@@ -418,8 +465,8 @@ else:
 if use_topic_tags or use_population_tags:
     st.divider()
 
-# ── Step 4: Run ───────────────────────────────────────────────────────────
-st.header("Step 4 — Run analysis")
+# ── Step 5: Run ───────────────────────────────────────────────────────────
+st.header("Step 5 — Run analysis")
 
 api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
 if not api_key:
@@ -430,7 +477,7 @@ output_tab_name = st.text_input("Output tab name in Google Sheet:", value="Resul
 
 if st.button("▶ Run analysis", type="primary"):
     client = anthropic.Anthropic(api_key=api_key)
-    system_prompt = build_system_prompt(modules, final_topic_tags, final_population_tags)
+    system_prompt = build_system_prompt(modules, final_topic_tags, final_population_tags, selected_flags)
 
     results = []
     progress = st.progress(0)
@@ -457,6 +504,11 @@ if st.button("▶ Run analysis", type="primary"):
             for field in ("topic_tags", "population_tags", "suggested_population_tags"):
                 if isinstance(analysis.get(field), list):
                     analysis[field] = "; ".join(analysis[field])
+            # Convert flag to readable label
+            if analysis.get("flag_full_text") in (True, "true", "True"):
+                analysis["flag_full_text"] = "⚑ REVIEW"
+            else:
+                analysis["flag_full_text"] = ""
             record = {
                 "title": title, "citation": citation, "abstract": abstract,
                 "parse_error": "",
@@ -486,10 +538,10 @@ if st.button("▶ Run analysis", type="primary"):
     st.session_state.spreadsheet = spreadsheet
     st.session_state.output_tab_name = output_tab_name
 
-# ── Step 5: Preview and write results ─────────────────────────────────────
+# ── Step 6: Preview and write results ─────────────────────────────────────
 if "df_results" in st.session_state:
     st.divider()
-    st.header("Step 5 — Results")
+    st.header("Step 6 — Results")
 
     df_results = st.session_state.df_results
 
@@ -500,10 +552,8 @@ if "df_results" in st.session_state:
         high = (pd.to_numeric(df_results["relevance_score"], errors="coerce") >= 4).sum()
         cols[1].metric("High relevance (4–5)", int(high))
     if "flag_full_text" in df_results.columns:
-        flagged = df_results["flag_full_text"].apply(
-            lambda x: str(x).lower() in ("true", "1", "yes")
-        ).sum()
-        cols[2].metric("Flagged for full text", int(flagged))
+        flagged = (df_results["flag_full_text"] == "⚑ REVIEW").sum()
+        cols[2].metric("Flagged for review", int(flagged))
     if "parse_error" in df_results.columns:
         errors = (df_results["parse_error"] != "").sum()
         cols[3].metric("Errors", int(errors))
