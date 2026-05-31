@@ -98,7 +98,9 @@ def get_gspread_client():
 
 def load_sheet(url: str) -> tuple[pd.DataFrame, gspread.Spreadsheet]:
     gc = get_gspread_client()
-    sh = gc.open_by_url(url)
+    # Strip fragment (#gid=...) which can confuse gspread
+    clean_url = url.split('#')[0]
+    sh = gc.open_by_url(clean_url)
     ws = sh.sheet1
     data = ws.get_all_records()
     df = pd.DataFrame(data)
