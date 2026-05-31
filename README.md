@@ -102,4 +102,10 @@ Optional OpenAlex columns (off by default, available under **OpenAlex details**)
 
 ---
 
+## Fork this project
+
+Want to adapt this for your own scoping review? Fork the repo, update the topic and population tag lists in `app.py` to match your domain, and deploy your own instance on Streamlit Cloud. The setup instructions above apply unchanged. If you build something with it, a credit back to this repo is appreciated.
+
+---
+
 MIT License © Sarah Warfield

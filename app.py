@@ -622,3 +622,21 @@ if "df_results" in st.session_state:
             st.markdown(f"[Open Google Sheet]({sheet_url})")
         except Exception as e:
             st.error(f"Could not write to sheet: {e}")
+
+# ---------------------------------------------------------------------------
+# Footer
+# ---------------------------------------------------------------------------
+st.divider()
+st.markdown(
+    """
+    <div style="text-align: center; color: #888; font-size: 0.85em; padding: 1em 0;">
+        Built with <a href="https://anthropic.com" target="_blank">Claude</a> +
+        <a href="https://openalex.org" target="_blank">OpenAlex</a> &nbsp;·&nbsp;
+        <a href="https://github.com/sarahwarf/scoping-review-agent" target="_blank">View on GitHub</a>
+        &nbsp;·&nbsp;
+        <a href="https://github.com/sarahwarf/scoping-review-agent/fork" target="_blank">Fork this project</a>
+        to adapt it for your own scoping review
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
