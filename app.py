@@ -482,7 +482,11 @@ if not api_key:
     st.error("ANTHROPIC_API_KEY not found in Streamlit secrets.")
     st.stop()
 
-output_tab_name = st.text_input("Output tab name in Google Sheet:", value="Results")
+raw_tab_name = st.text_input("Output tab name in Google Sheet:", value="Results")
+# Strip out any accidental URL pastes — keep only plain text, max 100 chars
+output_tab_name = re.sub(r'https?://\S+', '', raw_tab_name).strip()[:100] or "Results"
+if output_tab_name != raw_tab_name.strip():
+    st.warning(f'Tab name cleaned to: **{output_tab_name}**')
 
 if st.button("▶ Run analysis", type="primary"):
     client = anthropic.Anthropic(api_key=api_key)
