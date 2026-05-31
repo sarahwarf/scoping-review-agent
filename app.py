@@ -590,7 +590,7 @@ if "df_results" in st.session_state:
     if st.button("📤 Write to Google Sheet", type="primary"):
         try:
             sh = st.session_state.spreadsheet
-            tab_name = st.session_state.output_tab_name
+            tab_name = st.session_state.output_tab_name[:100]  # Google Sheets limit
 
             # Create or clear the output tab
             try:
@@ -599,9 +599,18 @@ if "df_results" in st.session_state:
             except gspread.WorksheetNotFound:
                 ws = sh.add_worksheet(title=tab_name, rows=len(df_results) + 10, cols=len(df_results.columns) + 5)
 
-            # Write header + data
+            # Build output — convert DOIs to clickable hyperlinks
             df_out = df_results.fillna("").astype(str)
-            ws.update([df_out.columns.tolist()] + df_out.values.tolist())
+            rows = [df_out.columns.tolist()]
+            doi_col = df_out.columns.tolist().index("doi") if "doi" in df_out.columns else None
+            for _, row in df_out.iterrows():
+                r = row.tolist()
+                if doi_col is not None and r[doi_col].strip():
+                    doi = r[doi_col].strip()
+                    url = doi if doi.startswith("http") else f"https://doi.org/{doi}"
+                    r[doi_col] = f'=HYPERLINK("{url}","{doi}")'
+                rows.append(r)
+            ws.update(rows, value_input_option="USER_ENTERED")
 
             st.success(f"Written to tab '{tab_name}' in your Google Sheet.")
             st.markdown(f"[Open Google Sheet]({sheet_url})")
