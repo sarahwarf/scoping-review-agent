@@ -368,6 +368,15 @@ st.markdown(
     "Flagged papers will show **⚑ REVIEW** in the output sheet with a reason. "
     "Leave everything unchecked and the agent will only flag papers it finds genuinely ambiguous on its own."
 )
+st.info(
+    "**How the agent makes these judgments:** The agent reads each abstract and looks for "
+    "specific signals — words, phrases, and patterns that indicate a condition is met. "
+    "For example, it flags *population not identified* when the abstract never specifies "
+    "who the participants are, or *research design unclear* when there is no method language "
+    "at all. These are language-based inferences, not verified facts. The flag is not a "
+    "finding — it is the agent saying *I was not confident enough to classify this from the "
+    "abstract alone.* A human should always make the final call on flagged papers."
+)
 
 FLAG_OPTIONS = [
     "Abstract too short or vague to classify",
